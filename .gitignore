@@ -1,0 +1,10 @@
+# CMake build outputs
+/build/
+/build-*/
+/CMakeCache.txt
+/CMakeFiles/
+/CTestTestfile.cmake
+/Testing/
+/cmake_install.cmake
+/compile_commands.json
+/Makefile
