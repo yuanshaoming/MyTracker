@@ -4,13 +4,17 @@
 
 ## 当前状态
 
-Task 01 至 Task 06 已提供最小 SORT 核心，Task 07 已提供固定 CSV 重放工具 `tracker_replay`、合成样本和 CLI 集成测试。可构建 C++17 静态库 `tracking_core`，并在开启测试时构建和运行 GoogleTest 目标 `tracker_tests`。OC-SORT 尚未实现。
+Task 01 至 Task 06 已提供最小 SORT 核心，Task 07 已提供固定 CSV 重放工具 `tracker_replay`、合成样本和 CLI 集成测试，Task 08 已完成 OpenCV 可视化与现场 SORT 基线复核。Task 09 至 Task 10 已完成固定步长 OC-SORT：OCM、OCR、ORU 和独立 `OCSortTracker` 已可通过 Replay 与可视化工具选择。可构建 C++17 静态库 `tracking_core`，并在开启测试时构建和运行 GoogleTest 目标 `tracker_tests`。
 
 - [开发协作规则](AGENTS.md)
 - [第一批 Codex 任务](docs/CODEX_TASKS_BATCH_01.md)
+- [第二批 Codex 任务](docs/CODEX_TASKS_BATCH_02.md)
+- [第三批 Codex 任务](docs/CODEX_TASKS_BATCH_03.md)
 - [公共接口契约](docs/tracker_contract.md)
 - [KalmanBoxTracker 说明](docs/kalman_box_tracker.md)
 - [CSV Replay 格式](docs/replay_format.md)
+- [SORT 图片序列可视化](docs/visualizer.md)
+- [OC-SORT 设计说明](docs/ocsort_design.md)
 - [原始实施计划](docs/行人跟踪模块开发实施计划.md)
 
 ## 目标与边界
@@ -99,9 +103,35 @@ Task 07 完成后才能形成“固定检测数据 → SORT → 可比较结果�
 不要开始后续任务。
 ```
 
+## 第二批开发范围
+
+第二批包括 Task 08–10：SORT 可视化、Observation-Centric Momentum，以及 Observation-Centric Recovery / Re-Update。现有 `SortTracker` 保留为行为和结果基线；只有 Task 09、Task 10 均通过验收后，才可称为本项目的 OC-SORT 实现。
+
+原计划 Task 11 的轨迹生命周期已由第一批 Task 06 实现，因此不重复安排；Task 10 复用同一契约。动态 dt、时间化超时、带身份真值的现场回归、Qt 和 Jetson 验证不属于第二批。
+
+开始第二批首项开发时使用：
+
+```text
+阅读根目录 AGENTS.md、README.md 和 docs/CODEX_TASKS_BATCH_02.md。
+仅执行 Task 08，先说明实现范围与验证方法，完成后报告实际测试结果。
+不要开始后续任务。
+```
+
+## 第三批开发范围
+
+第三批规划 Task 12–14：时间戳驱动与毫秒生命周期、现场测试集定版/身份标注，以及自动 Regression Test。默认固定步长模式保持兼容；只有带身份真值的数据才能形成 ID Switch 和 Track Fragment 验收证据。
+
+开始第三批首项开发时使用：
+
+```text
+阅读根目录 AGENTS.md、README.md 和 docs/CODEX_TASKS_BATCH_03.md。
+仅执行 Task 12，先说明实现范围与验证方法，完成后报告实际测试结果。
+不要开始后续任务。
+```
+
 ## 后续里程碑与验收
 
-首批之后依次开展可视化、完整 OC-SORT 的运动方向关联/恢复/重更新、时间化配置及动态 dt 对照实验、真实场景回归、Qt 适配和 Jetson 验证。仅增加运动方向或二次关联不足以宣称完整 OC-SORT。
+第三批完成后再开展 Windows Qt5.12 TrackingAdapter、Jetson ARM64 构建和性能验证。算法时间语义、现场身份回归和参数证据应在平台接入前稳定下来。
 
 第一版需验证单人 ID 稳定、短时漏检恢复、交叉与遮挡场景、完整 reset、跨平台构建、Qt 接入以及持续运行无内存增长。纯运动跟踪对完全遮挡或观测歧义不能保证身份恢复。
 

@@ -28,3 +28,17 @@ expect_failure("${DATA}/frames_empty.csv" "${DATA}/invalid_number_detections.csv
 expect_failure("${DATA}/frames_empty.csv" "${DATA}/invalid_box_detections.csv" "invalid_box_detections.csv:2")
 expect_failure("${DATA}/frames_empty.csv" "${DATA}/unknown_frame_detections.csv" "unknown_frame_detections.csv:2")
 expect_failure("${DATA}/frames_two.csv" "${DATA}/unordered_detections.csv" "unordered_detections.csv:3")
+
+set(INVALID_TRACKER_OUTPUT "${OUTPUT_DIR}/tracker_replay_invalid_tracker.csv")
+file(REMOVE "${INVALID_TRACKER_OUTPUT}")
+execute_process(
+    COMMAND "${TRACKER_REPLAY}" --frames "${DATA}/frames.csv" --detections "${DATA}/detections.csv" --output "${INVALID_TRACKER_OUTPUT}" --tracker invalid
+    RESULT_VARIABLE INVALID_TRACKER_RESULT
+    ERROR_VARIABLE INVALID_TRACKER_ERROR
+)
+if(INVALID_TRACKER_RESULT EQUAL 0)
+    message(FATAL_ERROR "invalid tracker unexpectedly succeeded")
+endif()
+if(EXISTS "${INVALID_TRACKER_OUTPUT}")
+    message(FATAL_ERROR "invalid tracker created an output file")
+endif()

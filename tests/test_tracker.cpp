@@ -141,13 +141,63 @@ TEST(SortTrackerTest, HandlesLostDeletionBoundaryAndRecovery) {
     EXPECT_EQ(recovered.front().state, TrackState::Confirmed);
     EXPECT_EQ(recovered.front().lostFrames, 0);
 
-    for (int miss = 1; miss <= 8; ++miss) {
+    for (int miss = 1; miss <= 2; ++miss) {
         const auto results = tracker.update({}, 375 + miss * 125);
         ASSERT_EQ(results.size(), 1U);
         EXPECT_EQ(results.front().state, TrackState::Lost);
         EXPECT_EQ(results.front().lostFrames, miss);
     }
-    EXPECT_TRUE(tracker.update({}, 1500).empty());
+    EXPECT_TRUE(tracker.update({}, 750).empty());
+}
+
+TEST(SortTrackerTest, DoesNotReviveAnExpiredLostTrackForAnOverlappingNewPerson) {
+    SortTracker tracker;
+    const std::vector<Detection> departingPerson{detection(0.0F, 0.0F, 100.0F, 200.0F)};
+    const std::vector<Detection> enteringPerson{detection(10.0F, 10.0F, 90.0F, 190.0F)};
+
+    tracker.update(departingPerson, 0);
+    ASSERT_EQ(tracker.update(departingPerson, 125).front().state, TrackState::Confirmed);
+    ASSERT_EQ(tracker.update({}, 250).front().lostFrames, 1);
+    ASSERT_EQ(tracker.update({}, 375).front().lostFrames, 2);
+    EXPECT_TRUE(tracker.update({}, 500).empty());
+
+    const auto results = tracker.update(enteringPerson, 625);
+    ASSERT_EQ(results.size(), 1U);
+    EXPECT_EQ(results.front().trackId, 2);
+    EXPECT_EQ(results.front().state, TrackState::Tentative);
+}
+
+TEST(SortTrackerTest, UsesLowConfidenceDetectionsOnlyToContinueExistingTracks) {
+    SortTracker continuationTracker;
+    continuationTracker.update({detection(0.0F, 0.0F, 20.0F, 20.0F)}, 0);
+    ASSERT_EQ(
+        continuationTracker.update({detection(1.0F, 0.0F, 21.0F, 20.0F)}, 125).front().state,
+        TrackState::Confirmed);
+
+    const auto continued = continuationTracker.update(
+        {detection(2.0F, 0.0F, 22.0F, 20.0F, 0.45F)}, 250);
+    ASSERT_EQ(continued.size(), 1U);
+    EXPECT_EQ(continued.front().trackId, 1);
+    EXPECT_FLOAT_EQ(continued.front().confidence, 0.45F);
+    EXPECT_EQ(continued.front().state, TrackState::Confirmed);
+
+    SortTracker creationTracker;
+    EXPECT_TRUE(creationTracker.update({detection(0.0F, 0.0F, 20.0F, 20.0F, 0.45F)}, 0).empty());
+}
+
+TEST(SortTrackerTest, DoesNotRecoverALostTrackFromAWeakContinuation) {
+    SortTracker tracker;
+    tracker.update({detection(0.0F, 0.0F, 20.0F, 20.0F)}, 0);
+    tracker.update({detection(1.0F, 0.0F, 21.0F, 20.0F)}, 125);
+    ASSERT_EQ(
+        tracker.update({detection(2.0F, 0.0F, 22.0F, 20.0F, 0.45F)}, 250).front().state,
+        TrackState::Confirmed);
+    ASSERT_EQ(tracker.update({}, 375).front().state, TrackState::Lost);
+
+    const auto results = tracker.update({detection(2.0F, 0.0F, 22.0F, 20.0F)}, 500);
+    ASSERT_EQ(results.size(), 2U);
+    EXPECT_EQ(trackWithId(results, 1).state, TrackState::Lost);
+    EXPECT_EQ(trackWithId(results, 2).state, TrackState::Tentative);
 }
 
 TEST(SortTrackerTest, TreatsEmptyAndInvalidDetectionsEquivalently) {
@@ -161,7 +211,7 @@ TEST(SortTrackerTest, TreatsEmptyAndInvalidDetectionsEquivalently) {
 
     const std::vector<Detection> invalid{
         detection(0.0F, 0.0F, 0.0F, 2.0F),
-        detection(0.0F, 0.0F, 2.0F, 2.0F, 0.4F),
+        detection(0.0F, 0.0F, 2.0F, 2.0F, 0.39F),
         detection(0.0F, 0.0F, 2.0F, 2.0F, std::numeric_limits<float>::quiet_NaN()),
     };
     expectEqualResults(
@@ -220,6 +270,10 @@ TEST(SortTrackerTest, RejectsInvalidConfiguration) {
     TrackerConfig invalidIoU;
     invalidIoU.iouThreshold = std::numeric_limits<float>::quiet_NaN();
     EXPECT_THROW({ SortTracker tracker(invalidIoU); }, std::invalid_argument);
+
+    TrackerConfig invalidContinuationThreshold;
+    invalidContinuationThreshold.continuationDetectionThreshold = 0.6F;
+    EXPECT_THROW({ SortTracker tracker(invalidContinuationThreshold); }, std::invalid_argument);
 
     TrackerConfig invalidHits;
     invalidHits.minHits = 0;

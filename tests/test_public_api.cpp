@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "tracking/itracker.h"
+#include "tracking/ocsort_tracker.h"
 #include "tracking/sort_tracker.h"
 #include "tracking/tracker_config.h"
 #include "tracking/types.h"
@@ -19,6 +20,7 @@ using ResetSignature = void (tracking::ITracker::*)();
 static_assert(std::is_abstract_v<tracking::ITracker>);
 static_assert(std::has_virtual_destructor_v<tracking::ITracker>);
 static_assert(std::is_base_of_v<tracking::ITracker, tracking::SortTracker>);
+static_assert(std::is_base_of_v<tracking::ITracker, tracking::OCSortTracker>);
 static_assert(std::is_same_v<decltype(&tracking::ITracker::update), UpdateSignature>);
 static_assert(std::is_same_v<decltype(&tracking::ITracker::reset), ResetSignature>);
 
@@ -50,10 +52,13 @@ TEST(PublicTypesTest, DefaultsAreDeterministic) {
 TEST(TrackerConfigTest, DefaultsMatchContract) {
     const tracking::TrackerConfig config;
     EXPECT_FLOAT_EQ(config.detectionThreshold, 0.5F);
+    EXPECT_FLOAT_EQ(config.continuationDetectionThreshold, 0.4F);
     EXPECT_FLOAT_EQ(config.iouThreshold, 0.3F);
     EXPECT_EQ(config.minHits, 2);
-    EXPECT_EQ(config.maxAgeFrames, 8);
+    EXPECT_EQ(config.maxAgeFrames, 2);
     EXPECT_FLOAT_EQ(config.nominalFps, 8.0F);
+    EXPECT_EQ(config.deltaT, 3);
+    EXPECT_FLOAT_EQ(config.inertia, 0.2F);
 }
 
 TEST(ITrackerTest, InterfaceSignatureCompiles) {

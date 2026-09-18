@@ -1,4 +1,4 @@
-#include "tracking/sort_tracker.h"
+#include "tracking/ocsort_tracker.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,6 +10,8 @@
 #include "geometry.h"
 #include "hungarian.h"
 #include "kalman_box_tracker.h"
+#include "ocsort_association.h"
+#include "ocsort_reupdate.h"
 
 namespace tracking {
 namespace {
@@ -38,10 +40,15 @@ bool isContinuationDetection(const Detection& detection, const TrackerConfig& co
 
 }  // namespace
 
-struct SortTracker::Impl {
+struct OCSortTracker::Impl {
     struct Track {
         Track(int trackId, const Detection& detection, int minHits)
-            : id(trackId), filter(detection.bbox), confidence(detection.confidence) {
+            : id(trackId),
+              filter(detection.bbox),
+              posterior(filter),
+              confidence(detection.confidence),
+              lastObservation(detection.bbox) {
+            history.record(detection, age);
             if (minHits == 1) {
                 state = TrackState::Confirmed;
             }
@@ -49,6 +56,10 @@ struct SortTracker::Impl {
 
         int id = -1;
         kalman::KalmanBoxTracker filter;
+        kalman::KalmanBoxTracker posterior;
+        ocsort::ObservationHistory history;
+        BBox lastObservation{};
+        int lastObservationAge = 1;
         float confidence = 0.0F;
         TrackState state = TrackState::Tentative;
         int age = 1;
@@ -65,12 +76,12 @@ struct SortTracker::Impl {
     std::int64_t lastTimestampMs = 0;
 };
 
-SortTracker::SortTracker(TrackerConfig config)
+OCSortTracker::OCSortTracker(TrackerConfig config)
     : impl_(std::make_unique<Impl>(validateConfig(config))) {}
 
-SortTracker::~SortTracker() = default;
+OCSortTracker::~OCSortTracker() = default;
 
-std::vector<TrackResult> SortTracker::update(
+std::vector<TrackResult> OCSortTracker::update(
     const std::vector<Detection>& detections,
     std::int64_t timestampMs) {
     if (timestampMs < 0 || (impl_->hasTimestamp && timestampMs <= impl_->lastTimestampMs)) {
@@ -94,49 +105,108 @@ std::vector<TrackResult> SortTracker::update(
         }
     }
 
-    assignment::CostMatrix costs;
-    costs.rows = impl_->tracks.size();
-    costs.columns = continuationDetections.size();
-    costs.values.reserve(costs.rows * costs.columns);
-    assignment::ValidityMask validEdges;
-    validEdges.rows = costs.rows;
-    validEdges.columns = costs.columns;
-    validEdges.values.reserve(costs.rows * costs.columns);
-
+    std::vector<ocsort::CandidateTrack> candidates;
+    candidates.reserve(impl_->tracks.size());
     for (const Impl::Track& track : impl_->tracks) {
         const auto predictedBox = track.filter.estimate();
         if (!predictedBox) {
             throw std::logic_error("predicted track has no valid box");
         }
+        candidates.push_back(ocsort::CandidateTrack{
+            *predictedBox,
+            &track.history,
+            track.age,
+            track.state == TrackState::Confirmed ? impl_->config.continuationDetectionThreshold
+                                                 : impl_->config.detectionThreshold,
+            track.state != TrackState::Lost ||
+                track.confidence >= impl_->config.detectionThreshold,
+        });
+    }
 
-        for (const Detection& detection : continuationDetections) {
-            const float overlap = geometry::iou(*predictedBox, detection.bbox);
-            costs.values.push_back(1.0F - overlap);
-            validEdges.values.push_back(
-                overlap >= impl_->config.iouThreshold &&
-                (detection.confidence >= impl_->config.detectionThreshold ||
-                 track.state == TrackState::Confirmed) &&
-                (track.state != TrackState::Lost ||
-                 track.confidence >= impl_->config.detectionThreshold));
+    const assignment::AssignmentResult firstAssociation = ocsort::associate(
+        candidates,
+        continuationDetections,
+        impl_->config.deltaT,
+        impl_->config.inertia,
+        impl_->config.iouThreshold);
+    std::vector<std::pair<std::size_t, std::size_t>> matches = firstAssociation.matches;
+    std::vector<bool> firstMatchedTracks(impl_->tracks.size(), false);
+    std::vector<bool> firstMatchedDetections(continuationDetections.size(), false);
+    for (const auto& match : firstAssociation.matches) {
+        firstMatchedTracks[match.first] = true;
+        firstMatchedDetections[match.second] = true;
+    }
+
+    std::vector<std::size_t> unmatchedTrackIndices;
+    std::vector<std::size_t> unmatchedDetectionIndices;
+    for (std::size_t index = 0; index < impl_->tracks.size(); ++index) {
+        if (!firstMatchedTracks[index]) {
+            unmatchedTrackIndices.push_back(index);
+        }
+    }
+    for (std::size_t index = 0; index < continuationDetections.size(); ++index) {
+        if (!firstMatchedDetections[index]) {
+            unmatchedDetectionIndices.push_back(index);
         }
     }
 
-    const assignment::AssignmentResult assignment = assignment::solve(costs, validEdges);
+    assignment::CostMatrix recoveryCosts{
+        unmatchedTrackIndices.size(), unmatchedDetectionIndices.size(), {}};
+    assignment::ValidityMask recoveryEdges{
+        unmatchedTrackIndices.size(), unmatchedDetectionIndices.size(), {}};
+    recoveryCosts.values.reserve(unmatchedTrackIndices.size() * unmatchedDetectionIndices.size());
+    recoveryEdges.values.reserve(unmatchedTrackIndices.size() * unmatchedDetectionIndices.size());
+    for (const std::size_t trackIndex : unmatchedTrackIndices) {
+        const BBox& lastObservation = impl_->tracks[trackIndex].lastObservation;
+        for (const std::size_t detectionIndex : unmatchedDetectionIndices) {
+            const float overlap = geometry::iou(lastObservation, continuationDetections[detectionIndex].bbox);
+            recoveryCosts.values.push_back(1.0F - overlap);
+            recoveryEdges.values.push_back(
+                overlap >= impl_->config.iouThreshold &&
+                (continuationDetections[detectionIndex].confidence >=
+                     impl_->config.detectionThreshold ||
+                 impl_->tracks[trackIndex].state == TrackState::Confirmed) &&
+                (impl_->tracks[trackIndex].state != TrackState::Lost ||
+                 impl_->tracks[trackIndex].confidence >= impl_->config.detectionThreshold));
+        }
+    }
+    const assignment::AssignmentResult recoveryAssociation = assignment::solve(recoveryCosts, recoveryEdges);
+    for (const auto& match : recoveryAssociation.matches) {
+        matches.emplace_back(
+            unmatchedTrackIndices[match.first],
+            unmatchedDetectionIndices[match.second]);
+    }
+
     std::vector<bool> matchedTracks(impl_->tracks.size(), false);
     std::vector<bool> matchedDetections(continuationDetections.size(), false);
     std::vector<bool> removeTracks(impl_->tracks.size(), false);
-
-    for (const auto& match : assignment.matches) {
+    for (const auto& match : matches) {
         Impl::Track& track = impl_->tracks[match.first];
         const Detection& detection = continuationDetections[match.second];
         const TrackState previousState = track.state;
-        if (!track.filter.update(detection.bbox)) {
+        const bool needsReupdate = previousState == TrackState::Lost &&
+                                   track.age > track.lastObservationAge + 1;
+        const bool updated = needsReupdate
+                                 ? ocsort::reupdate(
+                                       track.filter,
+                                       track.posterior,
+                                       track.lastObservation,
+                                       track.lastObservationAge,
+                                       detection.bbox,
+                                       track.age)
+                                       .has_value()
+                                 : track.filter.update(detection.bbox);
+        if (!updated) {
             removeTracks[match.first] = true;
             continue;
         }
 
         matchedTracks[match.first] = true;
         matchedDetections[match.second] = true;
+        track.posterior = track.filter;
+        track.history.record(detection, track.age);
+        track.lastObservation = detection.bbox;
+        track.lastObservationAge = track.age;
         track.confidence = detection.confidence;
         ++track.hitStreak;
         track.lostFrames = 0;
@@ -215,7 +285,7 @@ std::vector<TrackResult> SortTracker::update(
     return results;
 }
 
-void SortTracker::reset() {
+void OCSortTracker::reset() {
     impl_->tracks.clear();
     impl_->nextTrackId = 1;
     impl_->hasTimestamp = false;
