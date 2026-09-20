@@ -4,7 +4,8 @@
 #include <utility>
 #include <vector>
 
-namespace tracking::assignment {
+namespace tracking {
+namespace assignment {
 
 struct CostMatrix {
     std::size_t rows = 0;
@@ -28,4 +29,5 @@ AssignmentResult solve(
     const CostMatrix& costs,
     const ValidityMask& validEdges);
 
-}  // namespace tracking::assignment
+}  // namespace assignment
+}  // namespace tracking

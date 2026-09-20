@@ -6,6 +6,10 @@ include(CTest)
 
 option(BUILD_TRACKER_VISUALIZER "Build the OpenCV image-sequence visualizer" OFF)
 
+if(BUILD_TRACKER_VISUALIZER)
+    message(FATAL_ERROR "tracker_visualizer is unavailable on the C++14/VS2015 compatibility branch")
+endif()
+
 find_package(Eigen3 REQUIRED NO_MODULE)
 
 add_library(tracking_core STATIC
@@ -18,11 +22,12 @@ add_library(tracking_core STATIC
     src/sort_tracker.cpp
 )
 
-target_compile_features(tracking_core PUBLIC cxx_std_17)
+target_compile_features(tracking_core PUBLIC cxx_std_14)
 target_include_directories(tracking_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 target_link_libraries(tracking_core PRIVATE Eigen3::Eigen)
+set_target_properties(tracking_core PROPERTIES OUTPUT_NAME tracking_core_vs2015)
 
 add_executable(tracker_replay
     tools/tracker_replay.cpp
@@ -32,20 +37,6 @@ target_include_directories(tracker_replay PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_link_libraries(tracker_replay PRIVATE tracking_core)
-
-if(BUILD_TRACKER_VISUALIZER)
-    find_package(OpenCV REQUIRED COMPONENTS core highgui imgcodecs imgproc)
-
-    add_executable(tracker_visualizer
-        tools/tracker_visualizer.cpp
-        tools/replay_input.cpp
-    )
-    target_include_directories(tracker_visualizer PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${OpenCV_INCLUDE_DIRS}
-    )
-    target_link_libraries(tracker_visualizer PRIVATE tracking_core ${OpenCV_LIBS})
-endif()
 
 if(BUILD_TESTING)
     find_package(GTest REQUIRED)
@@ -83,23 +74,4 @@ if(BUILD_TESTING)
             -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_replay_failures.cmake
     )
-
-    if(BUILD_TRACKER_VISUALIZER)
-        add_test(
-            NAME TrackerVisualizerMissingImage
-            COMMAND ${CMAKE_COMMAND}
-                -DTRACKER_VISUALIZER=$<TARGET_FILE:tracker_visualizer>
-                -DFRAMES=${CMAKE_CURRENT_SOURCE_DIR}/testdata/replay/frames_empty.csv
-                -DDETECTIONS=${CMAKE_CURRENT_SOURCE_DIR}/testdata/replay/empty_detections.csv
-                -DIMAGE_DIR=${CMAKE_CURRENT_BINARY_DIR}/visualizer-missing-images
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_visualizer_missing_image.cmake
-        )
-        add_test(
-            NAME TrackerVisualizerAutoPlay
-            COMMAND ${CMAKE_COMMAND}
-                -DTRACKER_VISUALIZER=$<TARGET_FILE:tracker_visualizer>
-                -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/visualizer-autoplay
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_visualizer_autoplay.cmake
-        )
-    endif()
 endif()

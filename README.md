@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-Task 01 至 Task 06 已提供最小 SORT 核心，Task 07 已提供固定 CSV 重放工具 `tracker_replay`、合成样本和 CLI 集成测试，Task 08 已完成 OpenCV 可视化与现场 SORT 基线复核。Task 09 至 Task 10 已完成固定步长 OC-SORT：OCM、OCR、ORU 和独立 `OCSortTracker` 已可通过 Replay 与可视化工具选择。可构建 C++17 静态库 `tracking_core`，并在开启测试时构建和运行 GoogleTest 目标 `tracker_tests`。
+Task 01 至 Task 06 已提供最小 SORT 核心，Task 07 已提供固定 CSV 重放工具 `tracker_replay`、合成样本和 CLI 集成测试，Task 08 已完成 OpenCV 可视化与现场 SORT 基线复核。Task 09 至 Task 10 已完成固定步长 OC-SORT：OCM、OCR、ORU 和独立 `OCSortTracker` 已可通过 Replay 与可视化工具选择。本兼容分支可构建 C++14 静态库目标 `tracking_core`，其产物名为 `tracking_core_vs2015`，并在开启测试时构建和运行 GoogleTest 目标 `tracker_tests`。
 
 - [开发协作规则](AGENTS.md)
 - [第一批 Codex 任务](docs/CODEX_TASKS_BATCH_01.md)
@@ -28,7 +28,7 @@ Task 01 至 Task 06 已提供最小 SORT 核心，Task 07 已提供固定 CSV �
 检测 CSV ──→ 重放工具 ────→ tracking_core
 ```
 
-核心采用 C++17、Eigen3，在 CPU 上运行；使用 CMake 构建和 GoogleTest 测试。OpenCV 仅作为后续可视化工具的可选依赖。第一版不包括 ReID、GPU 跟踪、跨摄像机 ID 和长时间完全遮挡后的身份恢复。
+核心采用 C++14、Eigen3，在 CPU 上运行；使用 CMake 构建和 GoogleTest 测试。此兼容分支不提供 OpenCV 可视化工具。第一版不包括 ReID、GPU 跟踪、跨摄像机 ID 和长时间完全遮挡后的身份恢复。
 
 ## 规划目录
 
@@ -45,7 +45,7 @@ MyTracker/
 └── testdata/                # 可重复的合成数据与获准使用的现场数据
 ```
 
-库目标统一为 `tracking_core`，平台产物为 `tracking_core.lib` 或 `libtracking_core.a`。首批工具目标为 `tracker_replay`，测试目标为 `tracker_tests`。
+库目标统一为 `tracking_core`，本兼容分支产物为 `tracking_core_vs2015.lib` 或 `libtracking_core_vs2015.a`，避免与 C++17 主线库混用。首批工具目标为 `tracker_replay`，测试目标为 `tracker_tests`。
 
 ## 接口约定
 
@@ -66,9 +66,9 @@ void reset();
 
 ## 构建与测试
 
-需要支持 C++17 的编译器、CMake 3.16 或更高版本以及本地安装的 Eigen3。开启 `BUILD_TESTING` 时还需要本地安装并能被 CMake 找到的 GoogleTest。工程仅通过 `find_package` 查找这些依赖，不会下载或安装依赖；若 CMake 未在默认路径发现它们，可设置 `CMAKE_PREFIX_PATH`。
+需要支持 C++14 的编译器、CMake 3.16 或更高版本以及本地安装、可用于 VS2015 的 Eigen3。开启 `BUILD_TESTING` 时还需要本地安装并能被 CMake 找到的 GoogleTest。工程仅通过 `find_package` 查找这些依赖，不会下载或安装依赖；若 CMake 未在默认路径发现它们，可设置 `CMAKE_PREFIX_PATH`。
 
-本机 Task 01 验证环境：Apple clang 21.0.0、CMake 4.3.2、Eigen3 5.0.1（macOS arm64）。实际 GoogleTest 发现与测试结果以本任务交付报告为准。
+本机兼容性初步验证环境：Apple clang 21.0.0、CMake 4.3.2、Eigen3 5.0.1（macOS arm64）。实际 GoogleTest 发现与测试结果以本任务交付报告为准；该结果不替代 VS2015 实测。
 
 ```sh
 cmake -S . -B build -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Debug
@@ -77,6 +77,22 @@ ctest --test-dir build -C Debug --output-on-failure
 ```
 
 `--config Debug` 适用于多配置生成器；单配置生成器通过 `CMAKE_BUILD_TYPE` 选定构建类型。关闭 `BUILD_TESTING` 后应无需 GoogleTest 即可构建核心库。
+
+## VS2015 兼容分支
+
+`compat-vs2015` 保持与 `main` 相同的公共头、`tracking` 命名空间和 SORT/OC-SORT 跟踪行为，但不与主线共享二进制库。CMake 目标仍为 `tracking_core`；供既有软件链接的产物为 `tracking_core_vs2015.lib`。
+
+此分支支持核心库、`tracker_replay` 和测试，不支持 `tracker_visualizer`。`BUILD_TRACKER_VISUALIZER=ON` 会在 CMake 配置阶段失败，且不会查找 OpenCV。
+
+在 Windows 的 VS2015 x64 Native Tools Command Prompt 中，使用 `NMake Makefiles` 构建，以持续支持 v140 工具链：
+
+```sh
+cmake -S . -B build-vs2015 -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_TRACKER_VISUALIZER=OFF
+cmake --build build-vs2015
+ctest --test-dir build-vs2015 --output-on-failure
+```
+
+调用方须自行提供可被 `find_package(Eigen3 REQUIRED NO_MODULE)` 找到且可用于 VS2015 的 Eigen3；本项目不会下载、锁定或安装 Eigen3。
 
 重放合成样本：
 

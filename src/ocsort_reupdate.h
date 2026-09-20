@@ -1,18 +1,19 @@
 #pragma once
 
-#include <optional>
 #include <vector>
 
+#include "compat_optional.h"
 #include "kalman_box_tracker.h"
 
-namespace tracking::ocsort {
+namespace tracking {
+namespace ocsort {
 
 struct ReupdateResult {
     int virtualObservationCount = 0;
     std::vector<BBox> virtualObservations;
 };
 
-std::optional<ReupdateResult> reupdate(
+detail::Optional<ReupdateResult> reupdate(
     kalman::KalmanBoxTracker& filter,
     const kalman::KalmanBoxTracker& posterior,
     const BBox& lastObservation,
@@ -20,4 +21,5 @@ std::optional<ReupdateResult> reupdate(
     const BBox& currentObservation,
     int currentAge);
 
-}  // namespace tracking::ocsort
+}  // namespace ocsort
+}  // namespace tracking

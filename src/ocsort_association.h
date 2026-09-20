@@ -1,12 +1,13 @@
 #pragma once
 
-#include <optional>
 #include <vector>
 
+#include "compat_optional.h"
 #include "hungarian.h"
 #include "tracking/types.h"
 
-namespace tracking::ocsort {
+namespace tracking {
+namespace ocsort {
 
 constexpr int kDefaultDeltaT = 3;
 constexpr float kDefaultInertia = 0.2F;
@@ -19,8 +20,8 @@ struct Observation {
 class ObservationHistory {
 public:
     void record(const Detection& detection, int age);
-    std::optional<Observation> latestBefore(int currentAge) const noexcept;
-    std::optional<Observation> priorTo(int currentAge, int deltaT) const noexcept;
+    detail::Optional<Observation> latestBefore(int currentAge) const noexcept;
+    detail::Optional<Observation> priorTo(int currentAge, int deltaT) const noexcept;
     void reset() noexcept;
 
 private:
@@ -40,7 +41,7 @@ float angleScore(
     int currentAge,
     const BBox& detectionBox,
     int deltaT) noexcept;
-std::optional<float> similarity(
+detail::Optional<float> similarity(
     const CandidateTrack& track,
     const Detection& detection,
     int deltaT,
@@ -52,4 +53,5 @@ assignment::AssignmentResult associate(
     float inertia,
     float iouThreshold);
 
-}  // namespace tracking::ocsort
+}  // namespace ocsort
+}  // namespace tracking

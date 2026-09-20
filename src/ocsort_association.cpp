@@ -6,7 +6,8 @@
 
 #include "geometry.h"
 
-namespace tracking::ocsort {
+namespace tracking {
+namespace ocsort {
 namespace {
 
 bool isUsableDetection(const Detection& detection) noexcept {
@@ -44,8 +45,8 @@ void ObservationHistory::record(const Detection& detection, int age) {
     observations_.push_back(Observation{detection.bbox, age});
 }
 
-std::optional<Observation> ObservationHistory::latestBefore(int currentAge) const noexcept {
-    std::optional<Observation> latest;
+detail::Optional<Observation> ObservationHistory::latestBefore(int currentAge) const noexcept {
+    detail::Optional<Observation> latest;
     for (const Observation& observation : observations_) {
         if (observation.age < currentAge &&
             (!latest || observation.age > latest->age)) {
@@ -55,9 +56,9 @@ std::optional<Observation> ObservationHistory::latestBefore(int currentAge) cons
     return latest;
 }
 
-std::optional<Observation> ObservationHistory::priorTo(int currentAge, int deltaT) const noexcept {
+detail::Optional<Observation> ObservationHistory::priorTo(int currentAge, int deltaT) const noexcept {
     if (currentAge < 1 || deltaT < 1) {
-        return std::nullopt;
+        return {};
     }
 
     for (int age = currentAge - deltaT; age < currentAge; ++age) {
@@ -72,7 +73,7 @@ std::optional<Observation> ObservationHistory::priorTo(int currentAge, int delta
             return *found;
         }
     }
-    return std::nullopt;
+    return {};
 }
 
 void ObservationHistory::reset() noexcept {
@@ -96,23 +97,21 @@ float angleScore(
         return 0.0F;
     }
 
-    const double dot = std::clamp(
-        static_cast<double>(motion->x) * candidate->x +
-            static_cast<double>(motion->y) * candidate->y,
-        -1.0,
-        1.0);
+    const double unboundedDot = static_cast<double>(motion->x) * candidate->x +
+                                static_cast<double>(motion->y) * candidate->y;
+    const double dot = std::max(-1.0, std::min(unboundedDot, 1.0));
     const double score = (std::acos(-1.0) * 0.5 - std::abs(std::acos(dot))) / std::acos(-1.0);
     return std::isfinite(score) ? static_cast<float>(score) : 0.0F;
 }
 
-std::optional<float> similarity(
+detail::Optional<float> similarity(
     const CandidateTrack& track,
     const Detection& detection,
     int deltaT,
     float inertia) noexcept {
     if (deltaT < 1 || !std::isfinite(inertia) || inertia < 0.0F || inertia > 1.0F ||
         !geometry::isValid(track.predictedBox) || !isUsableDetection(detection)) {
-        return std::nullopt;
+        return {};
     }
 
     const float overlap = geometry::iou(track.predictedBox, detection.bbox);
@@ -120,7 +119,7 @@ std::optional<float> similarity(
                                 ? angleScore(*track.history, track.age, detection.bbox, deltaT)
                                 : 0.0F;
     const float result = overlap + inertia * detection.confidence * direction;
-    return std::isfinite(result) ? std::optional<float>{result} : std::nullopt;
+    return std::isfinite(result) ? detail::Optional<float>{result} : detail::Optional<float>{};
 }
 
 assignment::AssignmentResult associate(
@@ -149,4 +148,5 @@ assignment::AssignmentResult associate(
     return assignment::solve(costs, validEdges);
 }
 
-}  // namespace tracking::ocsort
+}  // namespace ocsort
+}  // namespace tracking
