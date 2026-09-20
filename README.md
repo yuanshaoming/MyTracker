@@ -13,7 +13,6 @@ Task 01 至 Task 06 已提供最小 SORT 核心，Task 07 已提供固定 CSV �
 - [公共接口契约](docs/tracker_contract.md)
 - [KalmanBoxTracker 说明](docs/kalman_box_tracker.md)
 - [CSV Replay 格式](docs/replay_format.md)
-- [SORT 图片序列可视化](docs/visualizer.md)
 - [OC-SORT 设计说明](docs/ocsort_design.md)
 - [原始实施计划](docs/行人跟踪模块开发实施计划.md)
 
@@ -66,7 +65,7 @@ void reset();
 
 ## 构建与测试
 
-需要支持 C++14 的编译器、CMake 3.16 或更高版本以及本地安装、可用于 VS2015 的 Eigen3。开启 `BUILD_TESTING` 时还需要本地安装并能被 CMake 找到的 GoogleTest。工程仅通过 `find_package` 查找这些依赖，不会下载或安装依赖；若 CMake 未在默认路径发现它们，可设置 `CMAKE_PREFIX_PATH`。
+需要支持 C++14 的编译器、CMake 3.16 或更高版本以及本地安装、可用于 VS2015 的 Eigen3。开启 `BUILD_TESTING` 时还需要本地安装并能被 CMake 找到的 GoogleTest。使用 VS2015/v140 时，GoogleTest 须以兼容该工具链的版本和相同运行库设置构建；1.17 及更新版本要求 C++17，不适用于此工具链。工程仅通过 `find_package` 查找这些依赖，不会下载或安装依赖；若 CMake 未在默认路径发现它们，可设置 `CMAKE_PREFIX_PATH`。
 
 本机兼容性初步验证环境：Apple clang 21.0.0、CMake 4.3.2、Eigen3 5.0.1（macOS arm64）。实际 GoogleTest 发现与测试结果以本任务交付报告为准；该结果不替代 VS2015 实测。
 

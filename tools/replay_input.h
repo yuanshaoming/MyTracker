@@ -11,6 +11,10 @@ namespace tracking {
 namespace tool {
 
 struct ReplayFrame {
+    ReplayFrame() = default;
+    ReplayFrame(std::int64_t frameId, std::int64_t timestamp)
+        : id(frameId), timestampMs(timestamp) {}
+
     std::int64_t id = 0;
     std::int64_t timestampMs = 0;
 };

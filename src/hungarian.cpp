@@ -12,6 +12,10 @@ namespace assignment {
 namespace {
 
 struct LexCost {
+    LexCost() = default;
+    LexCost(std::int64_t unmatched, long double totalCost)
+        : unmatchedCount(unmatched), cost(totalCost) {}
+
     std::int64_t unmatchedCount = 0;
     long double cost = 0.0L;
 };

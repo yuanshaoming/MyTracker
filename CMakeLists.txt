@@ -41,6 +41,26 @@ target_link_libraries(tracker_replay PRIVATE tracking_core)
 if(BUILD_TESTING)
     find_package(GTest REQUIRED)
 
+    if(TARGET GTest::gtest AND TARGET GTest::gtest_main)
+        set(TRACKER_GTEST_TARGETS GTest::gtest_main)
+    elseif(TARGET GTest::GTest AND TARGET GTest::Main)
+        set(TRACKER_GTEST_TARGETS GTest::GTest GTest::Main)
+    else()
+        message(FATAL_ERROR "GoogleTest package does not provide gtest and gtest_main targets")
+    endif()
+
+    if(MSVC AND MSVC_VERSION LESS 1910)
+        if(GTest_VERSION VERSION_GREATER_EQUAL "1.17" OR GTEST_VERSION VERSION_GREATER_EQUAL "1.17")
+            message(FATAL_ERROR "This GoogleTest version requires C++17; use a v140-compatible version")
+        endif()
+        foreach(gtest_target IN LISTS TRACKER_GTEST_TARGETS)
+            get_target_property(gtest_features ${gtest_target} INTERFACE_COMPILE_FEATURES)
+            if(gtest_features MATCHES "cxx_std_(17|20|23|26)")
+                message(FATAL_ERROR "This GoogleTest package requires C++17; use a v140-compatible version")
+            endif()
+        endforeach()
+    endif()
+
     add_executable(tracker_tests
         tests/test_public_api.cpp
         tests/test_geometry.cpp
@@ -53,7 +73,7 @@ if(BUILD_TESTING)
     target_include_directories(tracker_tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
-    target_link_libraries(tracker_tests PRIVATE tracking_core GTest::gtest_main Eigen3::Eigen)
+    target_link_libraries(tracker_tests PRIVATE tracking_core ${TRACKER_GTEST_TARGETS} Eigen3::Eigen)
 
     include(GoogleTest)
     gtest_discover_tests(tracker_tests)

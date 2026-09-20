@@ -33,6 +33,24 @@ static_assert(
 static_assert(
     std::is_same<decltype(&tracking::ITracker::reset), ResetSignature>::value,
     "ITracker::reset signature changed");
+static_assert(
+    std::is_constructible<tracking::BBox, float, float, float, float>::value,
+    "BBox must support positional construction on VS2015");
+static_assert(
+    std::is_constructible<tracking::Detection, tracking::BBox, float, int>::value,
+    "Detection must support positional construction on VS2015");
+static_assert(
+    std::is_constructible<
+        tracking::TrackResult,
+        int,
+        tracking::BBox,
+        float,
+        tracking::TrackState,
+        float,
+        float,
+        int,
+        int>::value,
+    "TrackResult must support positional construction on VS2015");
 
 }  // namespace
 

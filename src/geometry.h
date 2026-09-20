@@ -7,11 +7,18 @@ namespace tracking {
 namespace geometry {
 
 struct Point {
+    Point() = default;
+    Point(float pointX, float pointY) : x(pointX), y(pointY) {}
+
     float x = 0.0F;
     float y = 0.0F;
 };
 
 struct BBoxObservation {
+    BBoxObservation() = default;
+    BBoxObservation(float x, float y, float boxArea, float ratio)
+        : centerX(x), centerY(y), area(boxArea), aspectRatio(ratio) {}
+
     float centerX = 0.0F;
     float centerY = 0.0F;
     float area = 0.0F;

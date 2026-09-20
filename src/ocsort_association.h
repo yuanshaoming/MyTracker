@@ -13,6 +13,9 @@ constexpr int kDefaultDeltaT = 3;
 constexpr float kDefaultInertia = 0.2F;
 
 struct Observation {
+    Observation() = default;
+    Observation(BBox box, int observationAge) : bbox(box), age(observationAge) {}
+
     BBox bbox{};
     int age = 0;
 };
@@ -29,6 +32,19 @@ private:
 };
 
 struct CandidateTrack {
+    CandidateTrack() = default;
+    CandidateTrack(
+        BBox box,
+        const ObservationHistory* observationHistory,
+        int trackAge,
+        float minimumConfidence = 0.0F,
+        bool accepts = true)
+        : predictedBox(box),
+          history(observationHistory),
+          age(trackAge),
+          minimumDetectionConfidence(minimumConfidence),
+          acceptsDetections(accepts) {}
+
     BBox predictedBox{};
     const ObservationHistory* history = nullptr;
     int age = 0;
