@@ -65,9 +65,7 @@ void reset();
 
 ## 构建与测试
 
-需要支持 C++14 的编译器、CMake 3.16 或更高版本以及本地安装、可用于 VS2015 的 Eigen3。开启 `BUILD_TESTING` 时还需要本地安装并能被 CMake 找到的 GoogleTest。使用 VS2015/v140 时，GoogleTest 须以兼容该工具链的版本和相同运行库设置构建；1.17 及更新版本要求 C++17，不适用于此工具链。工程仅通过 `find_package` 查找这些依赖，不会下载或安装依赖；若 CMake 未在默认路径发现它们，可设置 `CMAKE_PREFIX_PATH`。
-
-本机兼容性初步验证环境：Apple clang 21.0.0、CMake 4.3.2、Eigen3 5.0.1（macOS arm64）。实际 GoogleTest 发现与测试结果以本任务交付报告为准；该结果不替代 VS2015 实测。
+需要支持 C++14 的编译器、CMake 3.16 或更高版本以及本地安装的 Eigen3 3.3.9。CMake 会精确匹配此版本，避免 Eigen 5.x 使用 VS2015 不支持的 C++14 特性。开启 `BUILD_TESTING` 时还需要本地安装并能被 CMake 找到的 GoogleTest。使用 VS2015/v140 时，GoogleTest 须以兼容该工具链的版本和相同运行库设置构建；1.17 及更新版本要求 C++17，不适用于此工具链。工程仅通过 `find_package` 查找这些依赖，不会下载或安装依赖；若 CMake 未在默认路径发现它们，可设置 `CMAKE_PREFIX_PATH`。
 
 ```sh
 cmake -S . -B build -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Debug
@@ -91,7 +89,7 @@ cmake --build build-vs2015
 ctest --test-dir build-vs2015 --output-on-failure
 ```
 
-调用方须自行提供可被 `find_package(Eigen3 REQUIRED NO_MODULE)` 找到且可用于 VS2015 的 Eigen3；本项目不会下载、锁定或安装 Eigen3。
+调用方须自行提供可被 `find_package(Eigen3 3.3.9 EXACT REQUIRED NO_MODULE)` 找到的 Eigen3 3.3.9；本项目不会下载或安装 Eigen3。
 
 重放合成样本：
 

@@ -10,7 +10,7 @@ if(BUILD_TRACKER_VISUALIZER)
     message(FATAL_ERROR "tracker_visualizer is unavailable on the C++14/VS2015 compatibility branch")
 endif()
 
-find_package(Eigen3 REQUIRED NO_MODULE)
+find_package(Eigen3 3.3.9 EXACT REQUIRED NO_MODULE)
 
 add_library(tracking_core STATIC
     src/geometry.cpp
