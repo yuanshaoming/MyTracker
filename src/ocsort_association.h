@@ -1,17 +1,21 @@
 #pragma once
 
-#include <optional>
 #include <vector>
 
+#include "compat_optional.h"
 #include "hungarian.h"
 #include "tracking/types.h"
 
-namespace tracking::ocsort {
+namespace tracking {
+namespace ocsort {
 
 constexpr int kDefaultDeltaT = 3;
 constexpr float kDefaultInertia = 0.2F;
 
 struct Observation {
+    Observation() = default;
+    Observation(BBox box, int observationAge) : bbox(box), age(observationAge) {}
+
     BBox bbox{};
     int age = 0;
 };
@@ -19,8 +23,8 @@ struct Observation {
 class ObservationHistory {
 public:
     void record(const Detection& detection, int age);
-    std::optional<Observation> latestBefore(int currentAge) const noexcept;
-    std::optional<Observation> priorTo(int currentAge, int deltaT) const noexcept;
+    detail::Optional<Observation> latestBefore(int currentAge) const noexcept;
+    detail::Optional<Observation> priorTo(int currentAge, int deltaT) const noexcept;
     void reset() noexcept;
 
 private:
@@ -28,6 +32,19 @@ private:
 };
 
 struct CandidateTrack {
+    CandidateTrack() = default;
+    CandidateTrack(
+        BBox box,
+        const ObservationHistory* observationHistory,
+        int trackAge,
+        float minimumConfidence = 0.0F,
+        bool accepts = true)
+        : predictedBox(box),
+          history(observationHistory),
+          age(trackAge),
+          minimumDetectionConfidence(minimumConfidence),
+          acceptsDetections(accepts) {}
+
     BBox predictedBox{};
     const ObservationHistory* history = nullptr;
     int age = 0;
@@ -40,7 +57,7 @@ float angleScore(
     int currentAge,
     const BBox& detectionBox,
     int deltaT) noexcept;
-std::optional<float> similarity(
+detail::Optional<float> similarity(
     const CandidateTrack& track,
     const Detection& detection,
     int deltaT,
@@ -52,4 +69,5 @@ assignment::AssignmentResult associate(
     float inertia,
     float iouThreshold);
 
-}  // namespace tracking::ocsort
+}  // namespace ocsort
+}  // namespace tracking

@@ -4,17 +4,18 @@
 
 #include "geometry.h"
 
-namespace tracking::ocsort {
+namespace tracking {
+namespace ocsort {
 namespace {
 
-std::optional<BBox> interpolate(
+detail::Optional<BBox> interpolate(
     const BBox& first,
     const BBox& second,
     float ratio) {
     const auto firstCenter = geometry::center(first);
     const auto secondCenter = geometry::center(second);
     if (!firstCenter || !secondCenter || !std::isfinite(ratio) || ratio <= 0.0F || ratio >= 1.0F) {
-        return std::nullopt;
+        return {};
     }
 
     const float firstWidth = first.x2 - first.x1;
@@ -31,12 +32,12 @@ std::optional<BBox> interpolate(
         centerX + width * 0.5F,
         centerY + height * 0.5F,
     };
-    return geometry::isValid(result) ? std::optional<BBox>{result} : std::nullopt;
+    return geometry::isValid(result) ? detail::Optional<BBox>{result} : detail::Optional<BBox>{};
 }
 
 }  // namespace
 
-std::optional<ReupdateResult> reupdate(
+detail::Optional<ReupdateResult> reupdate(
     kalman::KalmanBoxTracker& filter,
     const kalman::KalmanBoxTracker& posterior,
     const BBox& lastObservation,
@@ -45,14 +46,14 @@ std::optional<ReupdateResult> reupdate(
     int currentAge) {
     if (!geometry::isValid(lastObservation) || !geometry::isValid(currentObservation) ||
         lastObservationAge < 1 || currentAge <= lastObservationAge + 1) {
-        return std::nullopt;
+        return {};
     }
 
     kalman::KalmanBoxTracker replayed = posterior;
     ReupdateResult result;
     const int span = currentAge - lastObservationAge;
     for (int step = 1; step <= span; ++step) {
-        std::optional<BBox> interpolated;
+        detail::Optional<BBox> interpolated;
         const BBox* observation = &currentObservation;
         if (step < span) {
             interpolated = interpolate(
@@ -60,13 +61,13 @@ std::optional<ReupdateResult> reupdate(
                 currentObservation,
                 static_cast<float>(step) / static_cast<float>(span));
             if (!interpolated) {
-                return std::nullopt;
+                return {};
             }
             observation = &*interpolated;
             result.virtualObservations.push_back(*observation);
         }
         if (!replayed.predict() || !replayed.update(*observation)) {
-            return std::nullopt;
+            return {};
         }
         if (step < span) {
             ++result.virtualObservationCount;
@@ -76,4 +77,5 @@ std::optional<ReupdateResult> reupdate(
     return result;
 }
 
-}  // namespace tracking::ocsort
+}  // namespace ocsort
+}  // namespace tracking

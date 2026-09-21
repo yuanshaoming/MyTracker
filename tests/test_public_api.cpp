@@ -17,12 +17,40 @@ using UpdateSignature = std::vector<tracking::TrackResult> (tracking::ITracker::
     std::int64_t);
 using ResetSignature = void (tracking::ITracker::*)();
 
-static_assert(std::is_abstract_v<tracking::ITracker>);
-static_assert(std::has_virtual_destructor_v<tracking::ITracker>);
-static_assert(std::is_base_of_v<tracking::ITracker, tracking::SortTracker>);
-static_assert(std::is_base_of_v<tracking::ITracker, tracking::OCSortTracker>);
-static_assert(std::is_same_v<decltype(&tracking::ITracker::update), UpdateSignature>);
-static_assert(std::is_same_v<decltype(&tracking::ITracker::reset), ResetSignature>);
+static_assert(std::is_abstract<tracking::ITracker>::value, "ITracker must remain abstract");
+static_assert(
+    std::has_virtual_destructor<tracking::ITracker>::value,
+    "ITracker must retain a virtual destructor");
+static_assert(
+    std::is_base_of<tracking::ITracker, tracking::SortTracker>::value,
+    "SortTracker must implement ITracker");
+static_assert(
+    std::is_base_of<tracking::ITracker, tracking::OCSortTracker>::value,
+    "OCSortTracker must implement ITracker");
+static_assert(
+    std::is_same<decltype(&tracking::ITracker::update), UpdateSignature>::value,
+    "ITracker::update signature changed");
+static_assert(
+    std::is_same<decltype(&tracking::ITracker::reset), ResetSignature>::value,
+    "ITracker::reset signature changed");
+static_assert(
+    std::is_constructible<tracking::BBox, float, float, float, float>::value,
+    "BBox must support positional construction on VS2015");
+static_assert(
+    std::is_constructible<tracking::Detection, tracking::BBox, float, int>::value,
+    "Detection must support positional construction on VS2015");
+static_assert(
+    std::is_constructible<
+        tracking::TrackResult,
+        int,
+        tracking::BBox,
+        float,
+        tracking::TrackState,
+        float,
+        float,
+        int,
+        int>::value,
+    "TrackResult must support positional construction on VS2015");
 
 }  // namespace
 

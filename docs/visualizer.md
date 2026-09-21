@@ -1,5 +1,7 @@
 # SORT 图片序列可视化
 
+> 本文档适用于提供 `tracker_visualizer` 的 C++17 主线。`compat-vs2015` 分支不提供该工具；在该分支设置 `BUILD_TRACKER_VISUALIZER=ON` 会在 CMake 配置阶段失败。
+
 `tracker_visualizer` 是仅用于检查固定图片序列和现有 `SortTracker` 输出的可选工具。它不属于 `tracking_core`，不修改跟踪算法，也不读取检测模型。
 
 ## 构建

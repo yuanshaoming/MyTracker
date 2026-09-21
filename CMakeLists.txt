@@ -6,7 +6,11 @@ include(CTest)
 
 option(BUILD_TRACKER_VISUALIZER "Build the OpenCV image-sequence visualizer" OFF)
 
-find_package(Eigen3 REQUIRED NO_MODULE)
+if(BUILD_TRACKER_VISUALIZER)
+    message(FATAL_ERROR "tracker_visualizer is unavailable on the C++14/VS2015 compatibility branch")
+endif()
+
+find_package(Eigen3 3.3.9 EXACT REQUIRED NO_MODULE)
 
 add_library(tracking_core STATIC
     src/geometry.cpp
@@ -18,11 +22,12 @@ add_library(tracking_core STATIC
     src/sort_tracker.cpp
 )
 
-target_compile_features(tracking_core PUBLIC cxx_std_17)
+target_compile_features(tracking_core PUBLIC cxx_std_14)
 target_include_directories(tracking_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 target_link_libraries(tracking_core PRIVATE Eigen3::Eigen)
+set_target_properties(tracking_core PROPERTIES OUTPUT_NAME tracking_core_vs2015)
 
 add_executable(tracker_replay
     tools/tracker_replay.cpp
@@ -33,22 +38,28 @@ target_include_directories(tracker_replay PRIVATE
 )
 target_link_libraries(tracker_replay PRIVATE tracking_core)
 
-if(BUILD_TRACKER_VISUALIZER)
-    find_package(OpenCV REQUIRED COMPONENTS core highgui imgcodecs imgproc)
-
-    add_executable(tracker_visualizer
-        tools/tracker_visualizer.cpp
-        tools/replay_input.cpp
-    )
-    target_include_directories(tracker_visualizer PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${OpenCV_INCLUDE_DIRS}
-    )
-    target_link_libraries(tracker_visualizer PRIVATE tracking_core ${OpenCV_LIBS})
-endif()
-
 if(BUILD_TESTING)
     find_package(GTest REQUIRED)
+
+    if(TARGET GTest::gtest AND TARGET GTest::gtest_main)
+        set(TRACKER_GTEST_TARGETS GTest::gtest_main)
+    elseif(TARGET GTest::GTest AND TARGET GTest::Main)
+        set(TRACKER_GTEST_TARGETS GTest::GTest GTest::Main)
+    else()
+        message(FATAL_ERROR "GoogleTest package does not provide gtest and gtest_main targets")
+    endif()
+
+    if(MSVC AND MSVC_VERSION LESS 1910)
+        if(GTest_VERSION VERSION_GREATER_EQUAL "1.17" OR GTEST_VERSION VERSION_GREATER_EQUAL "1.17")
+            message(FATAL_ERROR "This GoogleTest version requires C++17; use a v140-compatible version")
+        endif()
+        foreach(gtest_target IN LISTS TRACKER_GTEST_TARGETS)
+            get_target_property(gtest_features ${gtest_target} INTERFACE_COMPILE_FEATURES)
+            if(gtest_features MATCHES "cxx_std_(17|20|23|26)")
+                message(FATAL_ERROR "This GoogleTest package requires C++17; use a v140-compatible version")
+            endif()
+        endforeach()
+    endif()
 
     add_executable(tracker_tests
         tests/test_public_api.cpp
@@ -62,7 +73,7 @@ if(BUILD_TESTING)
     target_include_directories(tracker_tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
-    target_link_libraries(tracker_tests PRIVATE tracking_core GTest::gtest_main Eigen3::Eigen)
+    target_link_libraries(tracker_tests PRIVATE tracking_core ${TRACKER_GTEST_TARGETS} Eigen3::Eigen)
 
     include(GoogleTest)
     gtest_discover_tests(tracker_tests)
@@ -83,23 +94,4 @@ if(BUILD_TESTING)
             -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_replay_failures.cmake
     )
-
-    if(BUILD_TRACKER_VISUALIZER)
-        add_test(
-            NAME TrackerVisualizerMissingImage
-            COMMAND ${CMAKE_COMMAND}
-                -DTRACKER_VISUALIZER=$<TARGET_FILE:tracker_visualizer>
-                -DFRAMES=${CMAKE_CURRENT_SOURCE_DIR}/testdata/replay/frames_empty.csv
-                -DDETECTIONS=${CMAKE_CURRENT_SOURCE_DIR}/testdata/replay/empty_detections.csv
-                -DIMAGE_DIR=${CMAKE_CURRENT_BINARY_DIR}/visualizer-missing-images
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_visualizer_missing_image.cmake
-        )
-        add_test(
-            NAME TrackerVisualizerAutoPlay
-            COMMAND ${CMAKE_COMMAND}
-                -DTRACKER_VISUALIZER=$<TARGET_FILE:tracker_visualizer>
-                -DOUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/visualizer-autoplay
-                -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/check_visualizer_autoplay.cmake
-        )
-    endif()
 endif()

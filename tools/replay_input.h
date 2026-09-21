@@ -7,9 +7,14 @@
 
 #include "tracking/types.h"
 
-namespace tracking::tool {
+namespace tracking {
+namespace tool {
 
 struct ReplayFrame {
+    ReplayFrame() = default;
+    ReplayFrame(std::int64_t frameId, std::int64_t timestamp)
+        : id(frameId), timestampMs(timestamp) {}
+
     std::int64_t id = 0;
     std::int64_t timestampMs = 0;
 };
@@ -23,4 +28,5 @@ ReplayInputs parseReplayInputs(
     const std::string& framesPath,
     const std::string& detectionsPath);
 
-}  // namespace tracking::tool
+}  // namespace tool
+}  // namespace tracking

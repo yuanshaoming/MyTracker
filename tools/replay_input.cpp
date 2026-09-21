@@ -1,6 +1,5 @@
 #include "replay_input.h"
 
-#include <charconv>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -12,7 +11,8 @@
 
 #include "geometry.h"
 
-namespace tracking::tool {
+namespace tracking {
+namespace tool {
 namespace {
 
 constexpr const char* kFramesHeader = "frame_id,timestamp_ms";
@@ -49,9 +49,15 @@ std::int64_t parseInt64(
     const std::string& path,
     std::size_t line,
     const char* fieldName) {
+    if (text.empty() || text.front() == '+') {
+        throw ParseError(path, line, std::string("invalid integer for ") + fieldName);
+    }
+
+    std::istringstream stream(text);
+    stream.imbue(std::locale::classic());
+    stream >> std::noskipws;
     std::int64_t value = 0;
-    const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
-    if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size()) {
+    if (!(stream >> value) || stream.peek() != std::char_traits<char>::eof()) {
         throw ParseError(path, line, std::string("invalid integer for ") + fieldName);
     }
     return value;
@@ -199,4 +205,5 @@ ReplayInputs parseReplayInputs(const std::string& framesPath, const std::string&
     return inputs;
 }
 
-}  // namespace tracking::tool
+}  // namespace tool
+}  // namespace tracking

@@ -17,6 +17,9 @@ using tracking::assignment::ValidityMask;
 using tracking::assignment::solve;
 
 struct Optimum {
+    Optimum() = default;
+    Optimum(std::size_t matches, double cost) : matchCount(matches), totalCost(cost) {}
+
     std::size_t matchCount = 0;
     double totalCost = std::numeric_limits<double>::infinity();
 };

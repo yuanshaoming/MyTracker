@@ -1,13 +1,13 @@
 #pragma once
 
-#include <optional>
-
 #include <Eigen/Dense>
 
+#include "compat_optional.h"
 #include "geometry.h"
 #include "tracking/types.h"
 
-namespace tracking::kalman {
+namespace tracking {
+namespace kalman {
 
 class KalmanBoxTracker {
 public:
@@ -15,18 +15,19 @@ public:
 
     bool predict();
     bool update(const BBox& observation);
-    std::optional<BBox> estimate() const;
-    std::optional<geometry::Point> velocityPerFrame() const;
+    detail::Optional<BBox> estimate() const;
+    detail::Optional<geometry::Point> velocityPerFrame() const;
 
 private:
     using StateVector = Eigen::Matrix<float, 7, 1>;
     using StateCovariance = Eigen::Matrix<float, 7, 7>;
 
-    std::optional<BBox> stateToBox() const;
+    detail::Optional<BBox> stateToBox() const;
 
     StateVector state_ = StateVector::Zero();
     StateCovariance covariance_ = StateCovariance::Zero();
     bool usable_ = false;
 };
 
-}  // namespace tracking::kalman
+}  // namespace kalman
+}  // namespace tracking

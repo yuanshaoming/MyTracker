@@ -3,13 +3,19 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <optional>
 #include <stdexcept>
 
-namespace tracking::assignment {
+#include "compat_optional.h"
+
+namespace tracking {
+namespace assignment {
 namespace {
 
 struct LexCost {
+    LexCost() = default;
+    LexCost(std::int64_t unmatched, long double totalCost)
+        : unmatchedCount(unmatched), cost(totalCost) {}
+
     std::int64_t unmatchedCount = 0;
     long double cost = 0.0L;
 };
@@ -77,7 +83,7 @@ AssignmentResult solve(const CostMatrix& costs, const ValidityMask& validEdges) 
     }
 
     const std::size_t assignmentElements = checkedProduct(size, size);
-    std::vector<std::optional<LexCost>> assignmentCosts(assignmentElements);
+    std::vector<detail::Optional<LexCost>> assignmentCosts(assignmentElements);
     const auto assignmentIndex = [size](std::size_t row, std::size_t column) {
         return row * size + column;
     };
@@ -114,13 +120,13 @@ AssignmentResult solve(const CostMatrix& costs, const ValidityMask& validEdges) 
     for (std::size_t row = 1; row <= size; ++row) {
         matchedRowForColumn[0] = row;
         std::size_t column = 0;
-        std::vector<std::optional<LexCost>> minimumValues(size + 1);
+        std::vector<detail::Optional<LexCost>> minimumValues(size + 1);
         std::vector<bool> used(size + 1, false);
 
         do {
             used[column] = true;
             const std::size_t currentRow = matchedRowForColumn[column];
-            std::optional<LexCost> delta;
+            detail::Optional<LexCost> delta;
             std::size_t nextColumn = 0;
 
             for (std::size_t candidate = 1; candidate <= size; ++candidate) {
@@ -198,4 +204,5 @@ AssignmentResult solve(const CostMatrix& costs, const ValidityMask& validEdges) 
     return result;
 }
 
-}  // namespace tracking::assignment
+}  // namespace assignment
+}  // namespace tracking

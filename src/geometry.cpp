@@ -3,26 +3,27 @@
 #include <algorithm>
 #include <cmath>
 
-namespace tracking::geometry {
+namespace tracking {
+namespace geometry {
 namespace {
 
-std::optional<float> finiteFloat(double value) noexcept {
+detail::Optional<float> finiteFloat(double value) noexcept {
     if (!std::isfinite(value)) {
-        return std::nullopt;
+        return {};
     }
 
     const float result = static_cast<float>(value);
     if (!std::isfinite(result)) {
-        return std::nullopt;
+        return {};
     }
     return result;
 }
 
-std::optional<Point> makePoint(double x, double y) noexcept {
+detail::Optional<Point> makePoint(double x, double y) noexcept {
     const auto pointX = finiteFloat(x);
     const auto pointY = finiteFloat(y);
     if (!pointX || !pointY) {
-        return std::nullopt;
+        return {};
     }
     return Point{*pointX, *pointY};
 }
@@ -45,9 +46,9 @@ float area(const BBox& bbox) noexcept {
     return finiteFloat(width * height).value_or(0.0F);
 }
 
-std::optional<Point> center(const BBox& bbox) noexcept {
+detail::Optional<Point> center(const BBox& bbox) noexcept {
     if (!isValid(bbox)) {
-        return std::nullopt;
+        return {};
     }
 
     return makePoint(
@@ -84,11 +85,11 @@ float iou(const BBox& first, const BBox& second) noexcept {
     return finiteFloat(intersectionArea / unionArea).value_or(0.0F);
 }
 
-std::optional<float> centerDistance(const BBox& first, const BBox& second) noexcept {
+detail::Optional<float> centerDistance(const BBox& first, const BBox& second) noexcept {
     const auto firstCenter = center(first);
     const auto secondCenter = center(second);
     if (!firstCenter || !secondCenter) {
-        return std::nullopt;
+        return {};
     }
 
     const double deltaX = static_cast<double>(secondCenter->x) - firstCenter->x;
@@ -96,18 +97,18 @@ std::optional<float> centerDistance(const BBox& first, const BBox& second) noexc
     return finiteFloat(std::hypot(deltaX, deltaY));
 }
 
-std::optional<Point> unitDirection(const BBox& from, const BBox& to) noexcept {
+detail::Optional<Point> unitDirection(const BBox& from, const BBox& to) noexcept {
     const auto fromCenter = center(from);
     const auto toCenter = center(to);
     if (!fromCenter || !toCenter) {
-        return std::nullopt;
+        return {};
     }
 
     const double deltaX = static_cast<double>(toCenter->x) - fromCenter->x;
     const double deltaY = static_cast<double>(toCenter->y) - fromCenter->y;
     const double length = std::hypot(deltaX, deltaY);
     if (!std::isfinite(length)) {
-        return std::nullopt;
+        return {};
     }
     if (length == 0.0) {
         return Point{};
@@ -116,9 +117,9 @@ std::optional<Point> unitDirection(const BBox& from, const BBox& to) noexcept {
     return makePoint(deltaX / length, deltaY / length);
 }
 
-std::optional<BBoxObservation> toObservation(const BBox& bbox) noexcept {
+detail::Optional<BBoxObservation> toObservation(const BBox& bbox) noexcept {
     if (!isValid(bbox)) {
-        return std::nullopt;
+        return {};
     }
 
     const double width = static_cast<double>(bbox.x2) - bbox.x1;
@@ -127,17 +128,17 @@ std::optional<BBoxObservation> toObservation(const BBox& bbox) noexcept {
     const auto boxArea = finiteFloat(width * height);
     const auto aspectRatio = finiteFloat(width / height);
     if (!centerPoint || !boxArea || !aspectRatio || *boxArea <= 0.0F || *aspectRatio <= 0.0F) {
-        return std::nullopt;
+        return {};
     }
 
     return BBoxObservation{centerPoint->x, centerPoint->y, *boxArea, *aspectRatio};
 }
 
-std::optional<BBox> fromObservation(const BBoxObservation& observation) noexcept {
+detail::Optional<BBox> fromObservation(const BBoxObservation& observation) noexcept {
     if (!std::isfinite(observation.centerX) || !std::isfinite(observation.centerY) ||
         !std::isfinite(observation.area) || !std::isfinite(observation.aspectRatio) ||
         observation.area <= 0.0F || observation.aspectRatio <= 0.0F) {
-        return std::nullopt;
+        return {};
     }
 
     const double width = std::sqrt(
@@ -149,14 +150,15 @@ std::optional<BBox> fromObservation(const BBoxObservation& observation) noexcept
     const auto x2 = finiteFloat(static_cast<double>(observation.centerX) + width * 0.5);
     const auto y2 = finiteFloat(static_cast<double>(observation.centerY) + height * 0.5);
     if (!x1 || !y1 || !x2 || !y2) {
-        return std::nullopt;
+        return {};
     }
 
     const BBox bbox{*x1, *y1, *x2, *y2};
     if (!isValid(bbox)) {
-        return std::nullopt;
+        return {};
     }
     return bbox;
 }
 
-}  // namespace tracking::geometry
+}  // namespace geometry
+}  // namespace tracking

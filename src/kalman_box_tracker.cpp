@@ -6,7 +6,8 @@
 
 #include "geometry.h"
 
-namespace tracking::kalman {
+namespace tracking {
+namespace kalman {
 namespace {
 
 using MeasurementMatrix = Eigen::Matrix<float, 4, 7>;
@@ -127,23 +128,23 @@ bool KalmanBoxTracker::update(const BBox& observationBox) {
     return true;
 }
 
-std::optional<BBox> KalmanBoxTracker::estimate() const {
+detail::Optional<BBox> KalmanBoxTracker::estimate() const {
     if (!usable_) {
-        return std::nullopt;
+        return {};
     }
     return stateToBox();
 }
 
-std::optional<geometry::Point> KalmanBoxTracker::velocityPerFrame() const {
+detail::Optional<geometry::Point> KalmanBoxTracker::velocityPerFrame() const {
     if (!usable_ || !state_.allFinite()) {
-        return std::nullopt;
+        return {};
     }
     return geometry::Point{state_(4), state_(5)};
 }
 
-std::optional<BBox> KalmanBoxTracker::stateToBox() const {
+detail::Optional<BBox> KalmanBoxTracker::stateToBox() const {
     if (!state_.allFinite()) {
-        return std::nullopt;
+        return {};
     }
 
     return geometry::fromObservation(geometry::BBoxObservation{
@@ -154,4 +155,5 @@ std::optional<BBox> KalmanBoxTracker::stateToBox() const {
     });
 }
 
-}  // namespace tracking::kalman
+}  // namespace kalman
+}  // namespace tracking
